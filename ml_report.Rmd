@@ -1,0 +1,148 @@
+---
+title: "WLE-classify"
+author: "HUNG HUO-SU"
+date: "09/23/2015"
+output: html_document
+---
+
+
+# Practical Machine Learning Project 09/24/2015
+##WLE Data analysis
+
+```{r firstchunk}
+setwd("d:\\course\\")
+library(caret)
+
+
+training_csv = read.csv("pml-training.csv")
+
+#Partition Original training data with classe into 2 part
+#70% for training model and 30% for verification
+inTrain <- createDataPartition(y=training_csv$classe, p=0.7, list=FALSE)
+training <- training_csv[inTrain,]
+testing <- training_csv[-inTrain,]
+
+#We just only focus on accelerometers, and ignore others sensor
+#training_accel contains only accelerometers data without classe
+#training_accel_classe contains only accelerometers with classe.
+training_accel <- training[grep("^accel", colnames(training))]
+training_accel_classe<-cbind(training_accel, training$classe)
+colnames(training_accel_classe)[ncol(training_accel_classe)] <-
+  "classe"
+colnames(training_accel_classe)[ncol(training_accel_classe)]
+
+#Use Random Forests method to train the model called modelFit_rf_70
+modelFit_rf_70 <- train(training_accel_classe$classe ~ ., data=training_accel_classe , method="rf", prof=TRUE)
+#The accuracy is over 90% and mtry =2 is best.
+modelFit_rf_70
+
+
+
+#Use confusionMatrix to verify model accuracy
+#The accuracy of model created by Random Forest is high and over 0.9
+confusionMatrix(testing$classe, predict(modelFit_rf_70, testing))
+
+#Fill the predict result to predRight column
+pred <- predict(modelFit_rf_70, testing)
+testing$predRight <- pred==testing$classe
+
+
+#Predict the answers of pml-testing.csv, and get result
+testing_csv = read.csv("pml-testing.csv")
+answers <- predict(modelFit_rf_70, testing_csv)
+answers
+
+#Use pml_write_files() function to create answer of file for 20 problems
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(answers)
+
+#Although we get over 90% accuracy by testing data from 30% of original data, we still want to know which conditions cause error prediction.
+#We use correlation matrix between factors and find out some less relation factors in order to show the test result in graphic.
+#For example, we get the most TRUE column is accel_forearm_y, and 
+#find the other factor less relation with it.
+min(abs(cor(training_accel[which(training_accel_classe$classe == "A"),]))) 
+
+
+#Use min_cor_rcname() funciton can retrive row/column name of minimal correlation value for each classe 
+min_cor_rcname <- function(Class)
+{
+  mdat <- abs(cor(training_accel[which(training_accel_classe$classe == Class),]))
+  index <- which.min(mdat) 
+
+  k <- arrayInd(index, dim(mdat))
+  rr <- rownames(mdat)[k[,1]] 
+  cc <- colnames(mdat)[k[,2]]
+  print(rr)
+  print(cc)
+}	
+
+
+min_cor_rcname("A")
+min_cor_rcname("B")
+min_cor_rcname("C")
+min_cor_rcname("D")
+min_cor_rcname("E")
+
+# Divide testing data by classe, because we want to observe error by each data
+testing_A <- testing[which(testing$classe == "A"),]
+testing_B <- testing[which(testing$classe == "B"),]
+testing_C <- testing[which(testing$classe == "C"),]
+testing_D <- testing[which(testing$classe == "D"),]
+testing_E <- testing[which(testing$classe == "E"),]
+
+
+
+#Plot graphs for each Classe A,B,C,D,E 
+qplot(accel_belt_x, accel_belt_y, colour=predict(modelFit_rf_70, testing_A), data=testing_A, main="Class A")
+qplot(accel_dumbbell_x, accel_belt_z, colour=predict(modelFit_rf_70, testing_B), data=testing_B, main="Class B")
+qplot(accel_belt_y, accel_belt_x, colour=predict(modelFit_rf_70, testing_C), data=testing_C, main="Class C")
+qplot(accel_belt_x, accel_forearm_x, colour=predict(modelFit_rf_70, testing_D), data=testing_D, main = "Class D")
+qplot(accel_dumbbell_y, accel_forearm_z, colour=predict(modelFit_rf_70, testing_E), data=testing_E, main="Class E")
+
+
+```
+
+##Summary
+*  Random Forest algorithm have high accuracy but performance is bad.It need much time to train model.*
+*  Most errors happen near the center of each group of each Class, but it is still predicted error. It may be caused by overfitting.It is better to reduce the features before train model by Random Forest method.*
+
+#### Per the graphs we generate, they imply something:
+
+1. Some error classifications of A are considered as B.
+2. Some error classifications of B are considered as A or C.
+3. Some error classifications of C are considered as A.
+4. Some error classifications of D are considered as A.
+5. Some error classifications of E are considered as B.
+
+*According to the page http://groupware.les.inf.puc-rio.br/har 
+"Weight Lifting Exercises Dataset". It declares* 
+
+- Class A - the specification exercise.
+- Class B - throwing the elbows to the front 
+- Class C - lifting the dumbbell only halfway 
+- Class D - lowering the dumbbell only halfway
+- Class E - throwing the hips to the front 
+
+
+**when we do the specified exercise,if we make the mistake about throwing our hips to the front, it might make our elbows to the front at the same time.**
+
+
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3miCmZT6d
+
+
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+
+#plot3d(calc_arm_mag(testing_E),calc_dumbbell_mag(testing_E),calc_arm_mag(testing_E), col=(as.numeric(testing_E$predRight)+2))
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
