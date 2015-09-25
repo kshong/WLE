@@ -134,15 +134,11 @@ qplot(accel_dumbbell_y, accel_forearm_z, colour=predict(modelFit_rf_70, testing_
 
 
 
-Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3miCmZT6d
 
-
-
-You can also embed plots, for example:
 
 ```{r, echo=FALSE}
 
-#plot3d(calc_arm_mag(testing_E),calc_dumbbell_mag(testing_E),calc_arm_mag(testing_E), col=(as.numeric(testing_E$predRight)+2))
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
